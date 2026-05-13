@@ -3588,7 +3588,7 @@ Réponds UNIQUEMENT avec un objet JSON valide, sans markdown :
     "domain": "site-officiel.fr",
     "industry": "Secteur précis",
     "employees": "Taille réelle",
-    "location": "Ville, Région (format court, sans numéro de rue ni code postal)",
+    "location": "Rue, Ville, Région (sans numéro de rue ni code postal ex: Rue du Commerce, Strasbourg, Grand Est)",
     "description": "Activité réelle en 1 phrase",
     "phone": "Numéro standard si trouvé sur le site sinon null",
     "email": "Email général si trouvé sinon null"
@@ -3674,21 +3674,21 @@ Fournis 4 à 8 contacts. Mets null sur tout champ incertain.`;
 }
 
 
-// Simplify address to "Ville, Région" for reliable geocoding
+// Simplify address: keep street name + city, remove number/zip/cedex
 function simplifyAddress(raw) {
   if (!raw) return '';
-  // Remove street numbers, cedex, BP, zip codes starting with digit
   let addr = raw
-    .replace(/\b\d{1,5}[,\s]+/g, '')       // street numbers
+    .replace(/^\d+[,\s]+/, '')              // leading street number
     .replace(/\bBP\s*\d+\b/gi, '')          // BP xxxx
     .replace(/\bCedex\s*\d*/gi, '')         // Cedex
     .replace(/\b\d{5}\b/g, '')              // zip codes
     .replace(/,\s*,/g, ',')                 // double commas
+    .replace(/,?\s*France\s*$/i, '')        // trailing ", France"
     .replace(/^\s*,\s*/g, '')               // leading comma
     .trim();
-  // Keep only the last 2 meaningful parts (city + country/region)
+  // Keep max 3 parts: street, city, region
   const parts = addr.split(',').map(s => s.trim()).filter(Boolean);
-  if (parts.length > 2) return parts.slice(-2).join(', ');
+  if (parts.length > 3) return parts.slice(0, 3).join(', ');
   return parts.join(', ') || raw;
 }
 
@@ -3919,6 +3919,7 @@ async function callTerritoryProspecting(region, sectors, size) {
   const apiKey = localStorage.getItem('ast_api_key');
   const sectorList = sectors.join(', ');
   const regionStr  = region || 'toute la France';
+  const sizeStr    = size   || 'toutes tailles';
   const regionInstr = region
     ? `UNIQUEMENT dans la région "${region}" (départements de cette région uniquement, pas ailleurs en France)`
     : 'sur toute la France';
@@ -3948,7 +3949,7 @@ Réponds UNIQUEMENT en JSON valide, sans markdown :
       "domain": "site-officiel.fr",
       "industry": "Secteur précis",
       "employees": "Taille réelle",
-      "location": "Ville, ${regionStr} (format court ex: Strasbourg, Grand Est)",
+      "location": "Rue, Ville, ${regionStr} (ex: Rue de la Paix, Strasbourg, Grand Est)",
       "description": "Activité en 1 phrase",
       "phone": "Standard trouvé sur site ou null",
       "email": "Email contact trouvé ou null",
